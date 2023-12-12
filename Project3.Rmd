@@ -1,0 +1,414 @@
+---
+title: "Project3"
+author: "Jordan Badstuebner"
+date: "3/23/2020"
+output: pdf_document
+---
+
+```{r echo = FALSE} 
+
+##When I knit, PDF will NOT show:
+#code cells
+#messages
+
+knitr::opts_chunk$set(echo = FALSE, 
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 6,
+                      fig.asp = .628
+                      )
+```
+
+```{r include=FALSE}
+##### Install lpSolve #####
+library(lpSolve)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(tinytex)
+library(DescTools)
+library(car)
+```
+
+```{r}
+##################
+##### PART 1 #####
+##################
+```
+
+```{r}
+##### ingred #####
+
+ingred = matrix(
+            c(1.250, 1.100, 1.300,
+              2.250, 1.222, 3.233,
+              0.045, 0.011, 0.022,
+              0.157, 0.185, 0.172),
+            nrow = 4,
+            byrow = TRUE,
+
+
+#dimnames stolen from Fred
+#For future use!!!
+dimnames = list(c("Water (gals)", "Malted Barley (lbs)", "Hops (lbs)", "Brewer's Yeast (pkgs)"),c("Ale", "Lager", "Stout")))
+
+ingred
+```
+
+```{r}
+##### Availability Vector ####
+avail = c(2000,    ##Water(gals/mo)
+          1400,    ##Malted Barley(lbs/mo)
+          50,      ##Hops(lbs/mo)
+          150)     ##Yeast(pkg/mo)
+
+##### C_Mat #####
+c_Mat = c(0.45,  ##water(gal)
+          2.50,  ##malted barley (lbs)
+          3.75,  ##hops (lbs)
+          6.00)  ##brewer's yeast (pkgs)
+
+##### g.rhs ######
+g.rhs = c_Mat*avail
+
+##### g,dir #####          
+g.dir = c("<=",
+          "<=",
+          "<=",
+          "<=")
+
+g.rhs
+```
+
+```{r}
+#####  c_beerPgal #####
+
+#Cost of beer per gal = Ingredients * cost (per ingredient)
+c_beerPgal = c_Mat*ingred
+
+print(c_beerPgal)
+```
+
+```{r }
+
+##### g,Cost #####
+g.Cost = c(sum(c_beerPgal[,1]),
+           sum(c_beerPgal[,2]),
+           sum(c_beerPgal[,3])
+           )
+             
+print(g.Cost)
+```
+
+```{r include=FALSE}
+
+##### g.Rev #####
+
+
+g.Rev = c(38.00,
+          26.00,
+          40.50)
+
+print(g.Rev)
+```
+
+```{r}
+
+##### g.Profit #####
+
+
+#P = R - C
+
+g.Profit = g.Rev - g.Cost
+
+print(g.Profit)
+```
+
+```{r}
+##### CURRENT PROFITS #####
+
+p = c(100, 400, 200)
+pr = p*g.Profit
+pr[1]+pr[2]+pr[3]
+```
+
+
+```{r}
+##### INTEGER SOLUTIONS #####
+
+# lp is a function in R that will output several “answers” into the object lp1
+#make sure that the order is corect
+
+#lp1 = lp("max", g.obj, g.con, g.dir, g.rhs, compute.sens = TRUE)
+lp1 = lp("max", g.Profit, c_beerPgal, g.dir, g.rhs, compute.sens = TRUE, int.vec = 1:3)
+
+# lp1$solution are the x, y, z values for the max P = (80, 0, 0)
+lp1$solution
+
+#lp1$objval is the max P = 800
+lp1$objval
+
+#lp1$duals gives the shadow prices for the constraints by row: 0.667
+lp1$duals
+```
+
+```{r}
+pi = 21516.44 - 17733.28
+pi
+pi*12
+```
+
+
+```{r}
+# Testing lp1$objval
+a = g.Profit*lp1$solution
+a[1]+a[2]
+```
+
+
+```{r}
+##### NON-INTEGER SOLUTIONS #####
+
+lp2 = lp("max", g.Profit, c_beerPgal, g.dir, g.rhs, compute.sens = TRUE)
+
+lp2$solution
+
+lp2$objval
+
+lp2$duals
+```
+
+```{r}
+# Testing lp1$solution
+b = c(337,525,0)
+c = b*g.Profit
+c[1]+c[2]
+```
+
+
+```{r}
+##################
+##### PART 3 #####
+##################
+```
+
+```{r}
+##### UPDATED CONSTRAINTS CALCULATIONS #####
+##### BARLEY #####
+(2.5*1400+7.5*600)            #RHS
+(2.5*1400+7.5*600)/(1400+600) #LHS
+##### YEAST #####
+(150*6+0*5)                   #RHS
+(150*6+0*5)/155               #LHS
+                              #Rounding up
+##### COST OF ADDITIONAL BARLEY #####
+7.50*600
+```
+
+```{r}
+##### CCB OPTIMIZATION #####
+##### CCBc_Mat #####
+CCBc_Mat = c(0.45,  ##water(gal)
+            (4.00), ##malted barley(lbs)
+             3.75,  ##hops(lbs)
+            (5.80))  ##brewer's yeast(pkgs)
+
+##### CCBAvail ####
+CCBc_avail = c(2000,    ##Water(gals/mo)
+              (8000),   ##Malted Barley(lbs/mo)
+               50,      ##Hops(lbs/mo)
+              (900))    ##Yeast(pkg/mo)#####
+
+##### CCBc_beerPgal #####
+
+#Cost of beer per gal = Ingredients * cost (per ingredient)
+CCBc_beerPgal = CCBc_Mat*ingred
+
+print(CCBc_beerPgal)
+```
+
+```{r}
+##### CCB OPTIMIZATION (CONTD) #####
+CCB_g.Cost = c(sum(CCBc_beerPgal[,1]),
+               sum(CCBc_beerPgal[,2]),
+               sum(CCBc_beerPgal[,3])
+               )
+             
+print(CCB_g.Cost)
+
+##### CCB_g.Profit #####
+CCB_g.Profit = g.Rev - CCB_g.Cost
+
+print(CCB_g.Profit)
+```
+
+```{r}
+##### CCB_g.rhs ######
+CCB_g.rhs = CCBc_Mat*CCB_avail
+
+CCB_g.rhs
+```
+
+
+```{r}
+##### CCB INTEGER SOLUTIONS #####
+
+
+# lp is a function in R that will output several “answers” into the object lp1
+#make sure that the order is corect
+
+#lp1 = lp("max", g.obj, g.con, g.dir, g.rhs, compute.sens = TRUE)
+lp1 = lp("max", CCB_g.Profit, CCBc_beerPgal, g.dir, CCB_g.rhs, int.vec = 1:3, compute.sens = TRUE)
+
+# lp1$solution are the x, y, z values for the max P = (80, 0, 0)
+lp1$solution
+
+#lp1$objval is the max P = 800
+lp1$objval
+
+#lp1$duals gives the shadow prices for the constraints by row: 0.667
+lp1$duals
+
+##### IS IT WORTH IT? #####
+lp1$objval - 4500 - (21516.44)
+```
+
+
+```{r}
+##### CCB NON-INTEGER SOLUTIONS #####
+
+
+# lp is a function in R that will output several “answers” into the object lp1
+#make sure that the order is corect
+
+#lp1 = lp("max", g.obj, g.con, g.dir, g.rhs, compute.sens = TRUE)
+lp1 = lp("max", CCB_g.Profit, CCBc_beerPgal, g.dir, CCB_g.rhs, compute.sens = TRUE)
+
+# lp1$solution are the x, y, z values for the max P = (80, 0, 0)
+lp1$solution
+
+#lp1$objval is the max P = 800
+lp1$objval
+
+#lp1$duals gives the shadow prices for the constraints by row: 0.667
+lp1$duals
+
+##### IS IT WORTH IT? #####
+lp1$objval - 4500 - (21528.84)
+```
+
+```{r}
+###############
+##### 3_a #####
+###############
+```
+
+```{r}
+##### Should they just buy the additional ingredients from their wholesaler?
+
+##### Availability Vector ####
+avail_3a = c(2000,    ##Water(gals/mo)
+             8000,  ##Malted Barley(lbs/mo)
+             50,      ##Hops(lbs/mo)
+             900)     ##Yeast(pkg/mo)
+
+##### C_Mat #####
+c_Mat_3a = c(0.45,  ##water(gal)
+             2.50,  ##malted barley (lbs)
+             3.75,  ##hops (lbs)
+             6.00)  ##brewer's yeast (pkgs)
+
+##### g.rhs ######
+g.rhs = c_Mat_3a*avail_3a
+
+##### g,dir #####          
+g.dir = c("<=",
+          "<=",
+          "<=",
+          "<=")
+
+g.rhs
+```
+
+
+```{r}
+#####  c_beerPgal #####
+
+#Cost of beer per gal = Ingredients * cost (per ingredient)
+c3a_beerPgal = c_Mat_3a*ingred
+
+print(c_beerPgal)
+```
+
+```{r }
+
+##### g,Cost #####
+g.Cost_3a = c(sum(c3a_beerPgal[,1]),
+           sum(c3a_beerPgal[,2]),
+           sum(c3a_beerPgal[,3])
+           )
+             
+print(g.Cost_3a)
+```
+
+```{r include=FALSE}
+
+##### g.Rev #####
+
+
+g.Rev = c(38.00,
+          26.00,
+          40.50)
+
+print(g.Rev)
+```
+
+```{r}
+
+##### g.Profit #####
+
+
+#P = R - C
+
+g.Profit_3a = g.Rev - g.Cost_3a
+
+print(g.Profit_3a)
+```
+
+```{r}
+##### INTEGER SOLUTIONS #####
+
+# lp is a function in R that will output several “answers” into the object lp1
+#make sure that the order is corect
+
+#lp1 = lp("max", g.obj, g.con, g.dir, g.rhs, compute.sens = TRUE)
+lp1 = lp("max", g.Profit_3a, c3a_beerPgal, g.dir, g.rhs, compute.sens = TRUE, int.vec = 1:3)
+
+# lp1$solution are the x, y, z values for the max P = (80, 0, 0)
+lp1$solution
+
+#lp1$objval is the max P = 800
+lp1$objval
+
+#lp1$duals gives the shadow prices for the constraints by row: 0.667
+lp1$duals
+```
+
+```{r}
+48034.39/17733.28
+```
+
+```{r}
+(48034.39-17733.28)*12
+```
+
+```{r}
+a=abs(log(2) + 1/1000)
+b=abs(-(1/1000) - log(2))
+c=log(2)
+format(abs(log(2) + 1/1000), nsmall = 20)
+format(abs(-(1/1000) - log(2)), nsmall = 20)
+format(log(2), nsmall = 20)
+format(a-b, nsmall = 20)
+```
+
